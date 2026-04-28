@@ -49,7 +49,7 @@ public:
     inline constexpr static CoreType core_type = CoreType::COMPLETE;
 
     // Difftest configs
-    inline constexpr static DifftestLevel difftest_level = DifftestLevel::NONE;
+    inline constexpr static DifftestLevel difftest_level = DifftestLevel::FULL;
     inline constexpr static bool dump_waveform = false;
     inline constexpr static const char * dump_path = "waveform/waveform.vcd";
 

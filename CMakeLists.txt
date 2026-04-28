@@ -39,5 +39,6 @@ verilate(   sim
             TOP_MODULE Top
             PREFIX VTop
             DIRECTORY ${CMAKE_SOURCE_DIR}/generated
+            VERILATOR_ARGS -Wno-TIMESCALEMOD
             TRACE
 )
