@@ -26,6 +26,7 @@ class Argument {
 public:
     inline uint32_t get_value_unsigned() const { return static_cast<const __Derived *>(this)->get_value_unsigned_impl(); }
     inline int32_t get_value_signed() const { return static_cast<const __Derived *>(this)->get_value_signed_impl(); }
+    inline uint32_t get_value_extended() const { return static_cast<const __Derived *>(this)->get_value_extended_impl(); }
     template<typename __Derived_>
     inline uint32_t operator+(const Argument<__Configs, __Derived_> & _rhs) const { return static_cast<const __Derived *>(this)->add_impl(_rhs); }
     template<typename __Derived_>
@@ -155,6 +156,9 @@ protected:
     inline uint32_t shift_right_impl(const Argument<__Configs, __Derived_> & _rhs) const {
         return static_cast<const __Derived *>(this)->get_value_signed() >> (_rhs.get_value_unsigned() & 0x1F);
     }
+    inline uint32_t get_value_extended_impl() const {
+        return static_cast<const __Derived *>(this)->get_value_signed();
+    }
 };
 
 /**
@@ -205,6 +209,9 @@ protected:
     template<typename __Derived_>
     inline uint32_t shift_right_impl(const Argument<__Configs, __Derived_> & _rhs) const {
         return static_cast<const __Derived *>(this)->get_value_unsigned() >> (_rhs.get_value_unsigned() & 0x1F);
+    }
+    inline uint32_t get_value_extended_impl() const {
+        return static_cast<const __Derived *>(this)->get_value_unsigned();
     }
 };
 
@@ -272,8 +279,8 @@ protected:
     template<typename __Derived_>
     inline __Derived & assign_impl(const Argument<__Configs, __Derived_> & _rhs) {
         if constexpr(!__Derived::is_constant::value) {
-            if(__bits == 32) static_cast<__Derived *>(this)->__get_raw_reference() = _rhs.get_value_unsigned();
-            else static_cast<__Derived *>(this)->__get_raw_reference() = (static_cast<const __Derived *>(this)->__get_raw_value() & ~(((1 << __bits) - 1) << __bit_offset)) | ((_rhs.get_value_unsigned() & ((1 << __bits) - 1)) << __bit_offset);
+            if(__bits == 32) static_cast<__Derived *>(this)->__get_raw_reference() = _rhs.get_value_extended();
+            else static_cast<__Derived *>(this)->__get_raw_reference() = (static_cast<const __Derived *>(this)->__get_raw_value() & ~(((1 << __bits) - 1) << __bit_offset)) | ((_rhs.get_value_extended() & ((1 << __bits) - 1)) << __bit_offset);
         }
         return *static_cast<__Derived *>(this);
     }
@@ -306,7 +313,7 @@ protected:
     }
     template<typename __Derived_>
     inline __Derived & assign_impl(const Argument<__Configs, __Derived_> & _rhs) {
-        if constexpr(!__Derived::is_constant::value) static_cast<__Derived *>(this)->__get_raw_reference() = _rhs.get_value_unsigned();
+        if constexpr(!__Derived::is_constant::value) static_cast<__Derived *>(this)->__get_raw_reference() = _rhs.get_value_extended();
         return *static_cast<__Derived *>(this);
     }
     inline __Derived & assign_impl(uint32_t _rhs) {

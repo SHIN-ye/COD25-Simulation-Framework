@@ -785,18 +785,18 @@ private:
             switch(load_op) {
             case 0B000: {
                 // lb
-                res.push_back(make_operation(assign, UnsignedRegisterGenerator<__Configs>(rd), ConstUnsignedDataMemGenerator<__Configs>(rs1, simm, 8)));
+                res.push_back(make_operation(assign, SignedRegisterGenerator<__Configs>(rd), ConstSignedDataMemGenerator<__Configs>(rs1, simm, 8)));
                 res.push_back(make_operation(assign, RegWeGenerator<__Configs>(), UnsignedImmGenerator<__Configs>(1)));
                 res.push_back(make_operation(assign, RegWaGenerator<__Configs>(), UnsignedImmGenerator<__Configs>(rd)));
-                res.push_back(make_operation(assign, RegWdGenerator<__Configs>(), ConstUnsignedRegisterGenerator<__Configs>(rd)));
+                res.push_back(make_operation(assign, RegWdGenerator<__Configs>(), ConstSignedRegisterGenerator<__Configs>(rd)));
                 return res;
             }
             case 0B001: {
                 // lh
-                res.push_back(make_operation(assign, UnsignedRegisterGenerator<__Configs>(rd), ConstUnsignedDataMemGenerator<__Configs>(rs1, simm, 16)));
+                res.push_back(make_operation(assign, SignedRegisterGenerator<__Configs>(rd), ConstSignedDataMemGenerator<__Configs>(rs1, simm, 16)));
                 res.push_back(make_operation(assign, RegWeGenerator<__Configs>(), UnsignedImmGenerator<__Configs>(1)));
                 res.push_back(make_operation(assign, RegWaGenerator<__Configs>(), UnsignedImmGenerator<__Configs>(rd)));
-                res.push_back(make_operation(assign, RegWdGenerator<__Configs>(), ConstUnsignedRegisterGenerator<__Configs>(rd)));
+                res.push_back(make_operation(assign, RegWdGenerator<__Configs>(), ConstSignedRegisterGenerator<__Configs>(rd)));
                 return res;
             }
             case 0B010: {
