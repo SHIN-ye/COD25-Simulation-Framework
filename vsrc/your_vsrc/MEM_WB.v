@@ -7,14 +7,14 @@ module MEM_WB (
     input         rf_we_m, dmem_we_m,
     input  [ 1:0] rf_wd_sel_m,
     input  [31:0] pc_plus4_m, pc_m, inst_m,
-    input         commit_m,
+    input         commit_m, halt_m,
     // to WB stage
     output reg [31:0] alu_res_w, slu_rd_w, dmem_wd_w,
     output reg [ 4:0] rf_wa_w,
     output reg        rf_we_w, dmem_we_w,
     output reg [ 1:0] rf_wd_sel_w,
     output reg [31:0] pc_plus4_w, pc_w, inst_w,
-    output reg        commit_w
+    output reg        commit_w, halt_w
 );
     always @(posedge clk) begin
         if (rst) begin
@@ -29,6 +29,7 @@ module MEM_WB (
             pc_w        <= 32'b0;
             inst_w      <= 32'b0;
             commit_w    <= 1'b0;
+            halt_w      <= 1'b0;
         end else begin
             alu_res_w   <= alu_res_m;
             slu_rd_w    <= slu_rd_m;
@@ -41,6 +42,7 @@ module MEM_WB (
             pc_w        <= pc_m;
             inst_w      <= inst_m;
             commit_w    <= commit_m;
+            halt_w      <= halt_m;
         end
     end
 endmodule

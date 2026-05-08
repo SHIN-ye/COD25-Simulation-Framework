@@ -67,6 +67,7 @@ module CPU (
     wire [31:0] imm_d;
     wire [ 4:0] rf_ra0_d, rf_ra1_d, rf_wa_d;
     wire        rf_we_d, alu_src0_sel_d, alu_src1_sel_d;
+    wire        halt_d;
     wire [ 3:0] br_type_d, dmem_access_d;
     wire        dmem_we_d;
     wire [ 1:0] rf_wd_sel_d;
@@ -81,6 +82,7 @@ module CPU (
         .rf_we        (rf_we_d),
         .alu_src0_sel (alu_src0_sel_d),
         .alu_src1_sel (alu_src1_sel_d),
+        .halt         (halt_d),
         .br_type      (br_type_d),
         .dmem_access  (dmem_access_d),
         .dmem_we      (dmem_we_d),
@@ -119,7 +121,7 @@ module CPU (
     wire        dmem_we_e;
     wire [ 1:0] rf_wd_sel_e;
     wire [31:0] pc_e, inst_e;
-    wire        commit_e;
+    wire        commit_e, halt_e;
 
     ID_EX u_ID_EX (
         .clk           (clk),
@@ -140,6 +142,7 @@ module CPU (
         .pc_d          (pc_d),
         .inst_d        (inst_d),
         .commit_d      (commit_d),
+        .halt_d        (halt_d),
         .alu_op_e      (alu_op_e),
         .imm_e         (imm_e),
         .rf_rd0_e      (rf_rd0_e),
@@ -154,7 +157,8 @@ module CPU (
         .rf_wd_sel_e   (rf_wd_sel_e),
         .pc_e          (pc_e),
         .inst_e        (inst_e),
-        .commit_e      (commit_e)
+        .commit_e      (commit_e),
+        .halt_e        (halt_e)
     );
 
     // ============================================
@@ -217,7 +221,7 @@ module CPU (
     wire        dmem_we_m;
     wire [ 1:0] rf_wd_sel_m;
     wire [31:0] pc_plus4_m, pc_m, inst_m;
-    wire        commit_m;
+    wire        commit_m, halt_m;
 
     EX_MEM u_EX_MEM (
         .clk         (clk),
@@ -233,6 +237,7 @@ module CPU (
         .pc_e        (pc_e),
         .inst_e      (inst_e),
         .commit_e    (commit_e),
+        .halt_e      (halt_e),
         .alu_res_m   (alu_res_m),
         .rf_rd1_m    (rf_rd1_m),
         .rf_wa_m     (rf_wa_m),
@@ -243,7 +248,8 @@ module CPU (
         .pc_plus4_m  (pc_plus4_m),
         .pc_m        (pc_m),
         .inst_m      (inst_m),
-        .commit_m    (commit_m)
+        .commit_m    (commit_m),
+        .halt_m      (halt_m)
     );
 
     // ============================================
@@ -271,6 +277,7 @@ module CPU (
     wire        rf_we_w_raw, dmem_we_w;
     wire [ 1:0] rf_wd_sel_w;
     wire [31:0] pc_plus4_w, pc_w, inst_w;
+    wire        halt_w;
 
     MEM_WB u_MEM_WB (
         .clk        (clk),
@@ -286,6 +293,7 @@ module CPU (
         .pc_m       (pc_m),
         .inst_m     (inst_m),
         .commit_m   (commit_m),
+        .halt_m     (halt_m),
         .alu_res_w  (alu_res_w),
         .slu_rd_w   (slu_rd_w),
         .dmem_wd_w  (dmem_wd_w),
@@ -296,7 +304,8 @@ module CPU (
         .pc_plus4_w (pc_plus4_w),
         .pc_w       (pc_w),
         .inst_w     (inst_w),
-        .commit_w   (commit_w)
+        .commit_w   (commit_w),
+        .halt_w     (halt_w)
     );
 
     assign rf_we_w = rf_we_w_raw;
@@ -317,7 +326,7 @@ module CPU (
     // Commit signals (from WB stage)
     // ============================================
     assign commit          = commit_w;
-    assign commit_halt     = 1'b0;
+    assign commit_halt     = halt_w & commit_w;
     assign commit_pc       = pc_w;
     assign commit_instr    = inst_w;
     assign commit_reg_we   = rf_we_w & commit_w;

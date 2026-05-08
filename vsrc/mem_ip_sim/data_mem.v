@@ -81,12 +81,12 @@ module
     generate
         if(`CORE_TYPE == `SINGLE_CYCLE) begin
             assign spo = mem[a];
+            assign debug_spo = mem[debug_a];
         end
         else begin
             assign spo = (cached_we && (cached_a == a)) ? cached_d : mem[a];
+            assign debug_spo = (cached_we && (cached_a == debug_a)) ? cached_d : mem[debug_a];
         end
     endgenerate
-
-    assign debug_spo = mem[debug_a];
 
 endmodule

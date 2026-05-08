@@ -9,7 +9,7 @@ module EX_MEM (
     input         dmem_we_e,
     input  [ 1:0] rf_wd_sel_e,
     input  [31:0] pc_plus4_e, pc_e, inst_e,
-    input         commit_e,
+    input         commit_e, halt_e,
     // to MEM stage
     output reg [31:0] alu_res_m, rf_rd1_m,
     output reg [ 4:0] rf_wa_m,
@@ -18,7 +18,7 @@ module EX_MEM (
     output reg        dmem_we_m,
     output reg [ 1:0] rf_wd_sel_m,
     output reg [31:0] pc_plus4_m, pc_m, inst_m,
-    output reg        commit_m
+    output reg        commit_m, halt_m
 );
     always @(posedge clk) begin
         if (rst) begin
@@ -33,6 +33,7 @@ module EX_MEM (
             pc_m          <= 32'b0;
             inst_m        <= 32'b0;
             commit_m      <= 1'b0;
+            halt_m        <= 1'b0;
         end else begin
             alu_res_m     <= alu_res_e;
             rf_rd1_m      <= rf_rd1_e;
@@ -45,6 +46,7 @@ module EX_MEM (
             pc_m          <= pc_e;
             inst_m        <= inst_e;
             commit_m      <= commit_e;
+            halt_m        <= halt_e;
         end
     end
 endmodule

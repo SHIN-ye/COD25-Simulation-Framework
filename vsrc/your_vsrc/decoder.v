@@ -22,8 +22,7 @@ module decoder (
     output [ 4:0] rf_wa,        
     output        rf_we,        
     output        alu_src0_sel, 
-    output        alu_src1_sel,
-
+    output        alu_src1_sel,    output        halt,
     output [ 3:0] br_type,      // 送给BRANCH模块
     output [ 3:0] dmem_access,  // 送给SLU模块 
     output        dmem_we,      // 写内存使能
@@ -47,6 +46,9 @@ module decoder (
     wire is_Branch = (opcode == 7'b1100011);
     wire is_JAL    = (opcode == 7'b1101111);
     wire is_JALR   = (opcode == 7'b1100111);
+    wire is_ebreak = (inst == 32'h00100073);
+
+    assign halt = is_ebreak;
 
     wire [31:0] imm_I = {{20{inst[31]}}, inst[31:20]};
     wire [31:0] imm_S = {{20{inst[31]}}, inst[31:25], inst[11:7]};
