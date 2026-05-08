@@ -1,16 +1,25 @@
 `timescale 1ns / 1ps
 
 module CPU (
-    input         clk, rst,
+    input         clk, rst, global_en,
 
     // IM interface
-    output [31:0] inst_addr,
-    input  [31:0] inst,
+    output [31:0] imem_raddr,
+    input  [31:0] imem_rdata,
 
     // DM interface
+    input  [31:0] dmem_rdata,
     output        dmem_we,
-    output [31:0] dmem_addr, dmem_wd,
-    input  [31:0] dmem_rd,
+    output [31:0] dmem_addr, dmem_wdata,
+
+    // commit (for difftest)
+    output        commit, commit_halt,
+    output [31:0] commit_pc, commit_instr,
+    output        commit_reg_we,
+    output [ 4:0] commit_reg_wa,
+    output [31:0] commit_reg_wd,
+    output        commit_dmem_we,
+    output [31:0] commit_dmem_wa, commit_dmem_wd,
 
     // debug
     input  [ 4:0] debug_reg_ra,
@@ -26,12 +35,12 @@ module CPU (
     PC u_PC (
         .clk (clk),
         .rst (rst),
-        .en  (1'b1),
+        .en  (global_en),
         .npc (pc_next),
         .pc  (pc_cur)
     );
 
-    assign inst_addr = pc_cur;
+    assign imem_raddr = pc_cur;
 
     // ============================================
     // IF/ID pipeline register
@@ -45,7 +54,7 @@ module CPU (
         .rst     (rst),
         .flush   (flush),
         .pc_f    (pc_cur),
-        .inst_f  (inst),
+        .inst_f  (imem_rdata),
         .pc_d    (pc_d),
         .inst_d  (inst_d),
         .commit_d(commit_d)
@@ -109,7 +118,7 @@ module CPU (
     wire [ 3:0] br_type_e, dmem_access_e;
     wire        dmem_we_e;
     wire [ 1:0] rf_wd_sel_e;
-    wire [31:0] pc_e;
+    wire [31:0] pc_e, inst_e;
     wire        commit_e;
 
     ID_EX u_ID_EX (
@@ -129,6 +138,7 @@ module CPU (
         .dmem_we_d     (dmem_we_d),
         .rf_wd_sel_d   (rf_wd_sel_d),
         .pc_d          (pc_d),
+        .inst_d        (inst_d),
         .commit_d      (commit_d),
         .alu_op_e      (alu_op_e),
         .imm_e         (imm_e),
@@ -143,6 +153,7 @@ module CPU (
         .dmem_we_e     (dmem_we_e),
         .rf_wd_sel_e   (rf_wd_sel_e),
         .pc_e          (pc_e),
+        .inst_e        (inst_e),
         .commit_e      (commit_e)
     );
 
@@ -185,7 +196,7 @@ module CPU (
     // flush when branch/jump taken in EX
     assign flush = (npc_sel_e != 2'b00);
 
-    // PC update: default PC+4, branch/JAL target, or JALR target
+    // PC update
     wire [31:0] pc_add_imm = pc_e + imm_e;
     wire [31:0] pc_jalr    = {alu_res[31:1], 1'b0};
     wire [31:0] pc_plus4_e;
@@ -205,7 +216,7 @@ module CPU (
     wire [ 3:0] dmem_access_m;
     wire        dmem_we_m;
     wire [ 1:0] rf_wd_sel_m;
-    wire [31:0] pc_plus4_m;
+    wire [31:0] pc_plus4_m, pc_m, inst_m;
     wire        commit_m;
 
     EX_MEM u_EX_MEM (
@@ -219,6 +230,8 @@ module CPU (
         .dmem_we_e   (dmem_we_e),
         .rf_wd_sel_e (rf_wd_sel_e),
         .pc_plus4_e  (pc_plus4_e),
+        .pc_e        (pc_e),
+        .inst_e      (inst_e),
         .commit_e    (commit_e),
         .alu_res_m   (alu_res_m),
         .rf_rd1_m    (rf_rd1_m),
@@ -228,6 +241,8 @@ module CPU (
         .dmem_we_m   (dmem_we_m),
         .rf_wd_sel_m (rf_wd_sel_m),
         .pc_plus4_m  (pc_plus4_m),
+        .pc_m        (pc_m),
+        .inst_m      (inst_m),
         .commit_m    (commit_m)
     );
 
@@ -238,12 +253,12 @@ module CPU (
 
     assign dmem_addr = alu_res_m;
     assign dmem_we   = dmem_we_m & commit_m;
-    assign dmem_wd   = slu_wd_out;
+    assign dmem_wdata = slu_wd_out;
 
     SLU u_SLU (
         .addr        (alu_res_m),
         .dmem_access (dmem_access_m),
-        .rd_in       (dmem_rd),
+        .rd_in       (dmem_rdata),
         .wd_in       (rf_rd1_m),
         .rd_out      (slu_rd_out),
         .wd_out      (slu_wd_out)
@@ -252,27 +267,35 @@ module CPU (
     // ============================================
     // MEM/WB pipeline register
     // ============================================
-    wire [31:0] alu_res_w, slu_rd_w;
-    wire        rf_we_w_raw;
+    wire [31:0] alu_res_w, slu_rd_w, dmem_wd_w;
+    wire        rf_we_w_raw, dmem_we_w;
     wire [ 1:0] rf_wd_sel_w;
-    wire [31:0] pc_plus4_w;
+    wire [31:0] pc_plus4_w, pc_w, inst_w;
 
     MEM_WB u_MEM_WB (
         .clk        (clk),
         .rst        (rst),
         .alu_res_m  (alu_res_m),
         .slu_rd_m   (slu_rd_out),
+        .dmem_wd_m  (slu_wd_out),
         .rf_wa_m    (rf_wa_m),
         .rf_we_m    (rf_we_m),
+        .dmem_we_m  (dmem_we_m),
         .rf_wd_sel_m(rf_wd_sel_m),
         .pc_plus4_m (pc_plus4_m),
+        .pc_m       (pc_m),
+        .inst_m     (inst_m),
         .commit_m   (commit_m),
         .alu_res_w  (alu_res_w),
         .slu_rd_w   (slu_rd_w),
+        .dmem_wd_w  (dmem_wd_w),
         .rf_wa_w    (rf_wa_w),
         .rf_we_w    (rf_we_w_raw),
+        .dmem_we_w  (dmem_we_w),
         .rf_wd_sel_w(rf_wd_sel_w),
         .pc_plus4_w (pc_plus4_w),
+        .pc_w       (pc_w),
+        .inst_w     (inst_w),
         .commit_w   (commit_w)
     );
 
@@ -289,5 +312,19 @@ module CPU (
         .sel  (rf_wd_sel_w),
         .res  (rf_wd_w)
     );
+
+    // ============================================
+    // Commit signals (from WB stage)
+    // ============================================
+    assign commit          = commit_w;
+    assign commit_halt     = 1'b0;
+    assign commit_pc       = pc_w;
+    assign commit_instr    = inst_w;
+    assign commit_reg_we   = rf_we_w & commit_w;
+    assign commit_reg_wa   = rf_wa_w;
+    assign commit_reg_wd   = rf_wd_w;
+    assign commit_dmem_we  = dmem_we_w & commit_w;
+    assign commit_dmem_wa  = alu_res_w;
+    assign commit_dmem_wd  = dmem_wd_w;
 
 endmodule
