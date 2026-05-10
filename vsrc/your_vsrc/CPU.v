@@ -81,6 +81,7 @@ module CPU (
     wire [ 3:0] br_type_d, dmem_access_d;
     wire        dmem_we_d;
     wire [ 1:0] rf_wd_sel_d;
+    wire        halt_d;
 
     decoder u_DECODE (
         .inst         (inst_d),
@@ -95,6 +96,7 @@ module CPU (
         .br_type      (br_type_d),
         .dmem_access  (dmem_access_d),
         .dmem_we      (dmem_we_d),
+        .halt         (halt_d),
         .rf_wd_sel    (rf_wd_sel_d)
     );
 
@@ -131,6 +133,7 @@ module CPU (
     wire [ 1:0] rf_wd_sel_e;
     wire [31:0] pc_e, inst_e;
     wire        commit_e;
+    wire        halt_e;
 
     ID_EX u_ID_EX (
         .clk            (clk),
@@ -154,6 +157,7 @@ module CPU (
         .rf_wd_sel_d    (rf_wd_sel_d),
         .pc_d           (pc_d),
         .inst_d         (inst_d),
+        .halt_d         (halt_d),
         .commit_d       (commit_d),
         .alu_op_e       (alu_op_e),
         .imm_e          (imm_e),
@@ -171,6 +175,7 @@ module CPU (
         .rf_wd_sel_e    (rf_wd_sel_e),
         .pc_e           (pc_e),
         .inst_e         (inst_e),
+        .halt_e         (halt_e),
         .commit_e       (commit_e)
     );
 
@@ -270,11 +275,11 @@ module CPU (
     wire [ 1:0] rf_wd_sel_m;
     wire [31:0] pc_plus4_m, pc_m, inst_m;
     wire        commit_m;
+    wire        halt_m;
 
     EX_MEM u_EX_MEM (
         .clk           (clk),
         .rst           (rst),
-        .en            (global_en),
         .alu_res_e     (alu_res),
         .rf_rd1_e      (rf_rd1_e),
         .rf_wa_e       (rf_wa_e),
@@ -286,6 +291,7 @@ module CPU (
         .pc_e          (pc_e),
         .inst_e        (inst_e),
         .commit_e      (commit_e),
+        .halt_e        (halt_e),
         .alu_res_m     (alu_res_m),
         .rf_rd1_m      (rf_rd1_m),
         .rf_wa_m       (rf_wa_m),
@@ -296,7 +302,8 @@ module CPU (
         .pc_plus4_m    (pc_plus4_m),
         .pc_m          (pc_m),
         .inst_m        (inst_m),
-        .commit_m      (commit_m)
+        .commit_m      (commit_m),
+        .halt_m        (halt_m)
     );
 
     // ============================================
@@ -324,29 +331,37 @@ module CPU (
     wire        rf_we_w_raw;
     wire [ 1:0] rf_wd_sel_w;
     wire [31:0] pc_plus4_w, pc_w, inst_w;
+    wire        halt_w;
+    wire        dmem_we_w;
+    wire [31:0] dmem_wd_w;
 
     MEM_WB u_MEM_WB (
         .clk         (clk),
         .rst         (rst),
-        .en          (global_en),
         .alu_res_m   (alu_res_m),
         .slu_rd_m    (slu_rd_out),
+        .dmem_wd_m   (slu_wd_out),
         .rf_wa_m     (rf_wa_m),
         .rf_we_m     (rf_we_m),
+        .dmem_we_m   (dmem_we_m),
         .rf_wd_sel_m (rf_wd_sel_m),
         .pc_plus4_m  (pc_plus4_m),
         .pc_m        (pc_m),
         .inst_m      (inst_m),
         .commit_m    (commit_m),
+        .halt_m      (halt_m),
         .alu_res_w   (alu_res_w),
         .slu_rd_w    (slu_rd_w),
+        .dmem_wd_w   (dmem_wd_w),
         .rf_wa_w     (rf_wa_w),
         .rf_we_w     (rf_we_w_raw),
+        .dmem_we_w   (dmem_we_w),
         .rf_wd_sel_w (rf_wd_sel_w),
         .pc_plus4_w  (pc_plus4_w),
         .pc_w        (pc_w),
         .inst_w      (inst_w),
-        .commit_w    (commit_w)
+        .commit_w    (commit_w),
+        .halt_w      (halt_w)
     );
 
     assign rf_we_w = rf_we_w_raw;
@@ -364,17 +379,55 @@ module CPU (
     );
 
     // ============================================
-    // Commit outputs (WB stage)
+    // Commit regs (暂存一级后输出，同步比对时序)
     // ============================================
-    assign commit           = commit_w;
-    assign commit_pc        = pc_w;
-    assign commit_instr     = inst_w;
-    assign commit_halt      = (inst_w == 32'h00100073);
-    assign commit_reg_we    = rf_we_w;
-    assign commit_reg_wa    = rf_wa_w;
-    assign commit_reg_wd    = rf_wd_w;
-    assign commit_dmem_we   = 1'b0;
-    assign commit_dmem_wa   = 32'b0;
-    assign commit_dmem_wd   = 32'b0;
+    reg  [ 0 : 0]   commit_reg;
+    reg  [31 : 0]   commit_pc_reg;
+    reg  [31 : 0]   commit_instr_reg;
+    reg  [ 0 : 0]   commit_halt_reg;
+    reg  [ 0 : 0]   commit_reg_we_reg;
+    reg  [ 4 : 0]   commit_reg_wa_reg;
+    reg  [31 : 0]   commit_reg_wd_reg;
+    reg  [ 0 : 0]   commit_dmem_we_reg;
+    reg  [31 : 0]   commit_dmem_wa_reg;
+    reg  [31 : 0]   commit_dmem_wd_reg;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            commit_reg          <= 1'H0;
+            commit_pc_reg       <= 32'H0;
+            commit_instr_reg    <= 32'H0;
+            commit_halt_reg     <= 1'H0;
+            commit_reg_we_reg   <= 1'H0;
+            commit_reg_wa_reg   <= 5'H0;
+            commit_reg_wd_reg   <= 32'H0;
+            commit_dmem_we_reg  <= 1'H0;
+            commit_dmem_wa_reg  <= 32'H0;
+            commit_dmem_wd_reg  <= 32'H0;
+        end
+        else if (global_en) begin
+            commit_reg          <= commit_w;
+            commit_pc_reg       <= pc_w;
+            commit_instr_reg    <= inst_w;
+            commit_halt_reg     <= halt_w;
+            commit_reg_we_reg   <= rf_we_w;
+            commit_reg_wa_reg   <= rf_wa_w;
+            commit_reg_wd_reg   <= rf_wd_w;
+            commit_dmem_we_reg  <= 1'b0;
+            commit_dmem_wa_reg  <= 32'b0;
+            commit_dmem_wd_reg  <= 32'b0;
+        end
+    end
+
+    assign commit           = commit_reg;
+    assign commit_pc        = commit_pc_reg;
+    assign commit_instr     = commit_instr_reg;
+    assign commit_halt      = commit_halt_reg;
+    assign commit_reg_we    = commit_reg_we_reg;
+    assign commit_reg_wa    = commit_reg_wa_reg;
+    assign commit_reg_wd    = commit_reg_wd_reg;
+    assign commit_dmem_we   = commit_dmem_we_reg;
+    assign commit_dmem_wa   = commit_dmem_wa_reg;
+    assign commit_dmem_wd   = commit_dmem_wd_reg;
 
 endmodule

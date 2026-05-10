@@ -11,7 +11,7 @@ module ID_EX (
     input         dmem_we_d,
     input  [ 1:0] rf_wd_sel_d,
     input  [31:0] pc_d, inst_d,
-    input         commit_d,
+    input         commit_d, halt_d,
     // to EX stage
     output reg [ 4:0] alu_op_e,
     output reg [31:0] imm_e, rf_rd0_e, rf_rd1_e,
@@ -21,7 +21,7 @@ module ID_EX (
     output reg        dmem_we_e,
     output reg [ 1:0] rf_wd_sel_e,
     output reg [31:0] pc_e, inst_e,
-    output reg        commit_e
+    output reg        commit_e, halt_e
 );
     always @(posedge clk) begin
         if (rst | flush) begin
@@ -42,6 +42,7 @@ module ID_EX (
             pc_e           <= 32'b0;
             inst_e         <= 32'h00000013;
             commit_e       <= 1'b0;
+            halt_e         <= 1'b0;
         end else if (en && !stall) begin
             alu_op_e       <= alu_op_d;
             imm_e          <= imm_d;
@@ -60,6 +61,7 @@ module ID_EX (
             pc_e           <= pc_d;
             inst_e         <= inst_d;
             commit_e       <= commit_d;
+            halt_e         <= halt_d;
         end
     end
 endmodule
