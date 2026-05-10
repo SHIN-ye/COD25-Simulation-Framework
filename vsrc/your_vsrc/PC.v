@@ -4,6 +4,7 @@ module PC (
     input             clk,
     input             rst,
     input             en,
+    input             stall,
     input      [31:0] npc,
     output reg [31:0] pc
 );
@@ -12,9 +13,10 @@ module PC (
         if (rst) begin
             pc <= 32'h00400000;
         end
-        else if (en) begin
+        else if (en && !stall) begin
             pc <= npc;
         end
     end
 
 endmodule
+    

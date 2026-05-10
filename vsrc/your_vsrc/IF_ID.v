@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module IF_ID (
-    input         clk, rst, flush,
+    input         clk, rst, en, stall, flush,
     input  [31:0] pc_f, inst_f,
     output reg [31:0] pc_d, inst_d,
     output reg        commit_d
@@ -15,7 +15,7 @@ module IF_ID (
             pc_d     <= 32'b0;
             inst_d   <= 32'h00000013;
             commit_d <= 1'b0;
-        end else begin
+        end else if (en && !stall) begin
             pc_d     <= pc_f;
             inst_d   <= inst_f;
             commit_d <= 1'b1;
