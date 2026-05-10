@@ -379,55 +379,17 @@ module CPU (
     );
 
     // ============================================
-    // Commit regs (暂存一级后输出，同步比对时序)
+    // Commit outputs (WB stage — 流水线寄存器已暂存一级)
     // ============================================
-    reg  [ 0 : 0]   commit_reg;
-    reg  [31 : 0]   commit_pc_reg;
-    reg  [31 : 0]   commit_instr_reg;
-    reg  [ 0 : 0]   commit_halt_reg;
-    reg  [ 0 : 0]   commit_reg_we_reg;
-    reg  [ 4 : 0]   commit_reg_wa_reg;
-    reg  [31 : 0]   commit_reg_wd_reg;
-    reg  [ 0 : 0]   commit_dmem_we_reg;
-    reg  [31 : 0]   commit_dmem_wa_reg;
-    reg  [31 : 0]   commit_dmem_wd_reg;
-
-    always @(posedge clk) begin
-        if (rst) begin
-            commit_reg          <= 1'H0;
-            commit_pc_reg       <= 32'H0;
-            commit_instr_reg    <= 32'H0;
-            commit_halt_reg     <= 1'H0;
-            commit_reg_we_reg   <= 1'H0;
-            commit_reg_wa_reg   <= 5'H0;
-            commit_reg_wd_reg   <= 32'H0;
-            commit_dmem_we_reg  <= 1'H0;
-            commit_dmem_wa_reg  <= 32'H0;
-            commit_dmem_wd_reg  <= 32'H0;
-        end
-        else if (global_en) begin
-            commit_reg          <= commit_w;
-            commit_pc_reg       <= pc_w;
-            commit_instr_reg    <= inst_w;
-            commit_halt_reg     <= halt_w;
-            commit_reg_we_reg   <= rf_we_w;
-            commit_reg_wa_reg   <= rf_wa_w;
-            commit_reg_wd_reg   <= rf_wd_w;
-            commit_dmem_we_reg  <= 1'b0;
-            commit_dmem_wa_reg  <= 32'b0;
-            commit_dmem_wd_reg  <= 32'b0;
-        end
-    end
-
-    assign commit           = commit_reg;
-    assign commit_pc        = commit_pc_reg;
-    assign commit_instr     = commit_instr_reg;
-    assign commit_halt      = commit_halt_reg;
-    assign commit_reg_we    = commit_reg_we_reg;
-    assign commit_reg_wa    = commit_reg_wa_reg;
-    assign commit_reg_wd    = commit_reg_wd_reg;
-    assign commit_dmem_we   = commit_dmem_we_reg;
-    assign commit_dmem_wa   = commit_dmem_wa_reg;
-    assign commit_dmem_wd   = commit_dmem_wd_reg;
+    assign commit           = commit_w;
+    assign commit_pc        = pc_w;
+    assign commit_instr     = inst_w;
+    assign commit_halt      = halt_w;
+    assign commit_reg_we    = rf_we_w;
+    assign commit_reg_wa    = rf_wa_w;
+    assign commit_reg_wd    = (rf_wa_w == 5'b0) ? 32'b0 : rf_wd_w;
+    assign commit_dmem_we   = dmem_we_w;
+    assign commit_dmem_wa   = alu_res_w;
+    assign commit_dmem_wd   = dmem_wd_w;
 
 endmodule
